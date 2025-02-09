@@ -1,37 +1,48 @@
-#![allow(dead_code)]
-
 use std::collections::HashMap;
 
 type Sudoku = [[u8; 9]; 9];
 type CellAddr = (usize, usize);
 
-struct Assumption {
-    alternatives: Vec<u8>,
+#[derive(Debug)]
+pub enum SolverError {
+    Impossible,
 }
 
-fn solve(table: &Sudoku) -> Sudoku {
+pub fn solve(table: &Sudoku) -> Result<Sudoku, SolverError> {
     let mut t = *table;
 
     let mut possibilities = calculate_possibilities(&t);
 
-    // if there is a single option item in `empty_cells_map`, fill cell with that value and
-    // recalculate possibilities for relative cells
     while !possibilities.is_empty() {
         match possibilities.iter().find(|cell| cell.1.len() == 1) {
             Some((addr, p)) => {
                 t[addr.0][addr.1] = p[0];
             }
-            // guess cells with least amount of possibilities
             None => {
-                eprintln!("{possibilities:?}");
-                unimplemented!("sudoku with uncertain cells are not supported");
+                let (addr, ps) = possibilities
+                    .iter_mut()
+                    .reduce(|acc, e| if e.1.len() < acc.1.len() { e } else { acc })
+                    .unwrap();
+
+                match ps.pop() {
+                    Some(v) => t[addr.0][addr.1] = v,
+                    None => return Err(SolverError::Impossible),
+                }
+
+                match solve(&t) {
+                    Ok(solved) => t = solved,
+                    Err(_) => match ps.pop() {
+                        Some(v) => t[addr.0][addr.1] = v,
+                        None => return Err(SolverError::Impossible),
+                    },
+                }
             }
         }
 
         possibilities = calculate_possibilities(&t);
     }
 
-    t
+    Ok(t)
 }
 
 fn calculate_possibilities(table: &Sudoku) -> HashMap<CellAddr, Vec<u8>> {
@@ -135,7 +146,7 @@ mod test {
             [3, 4, 5, 2, 8, 6, 1, 7, 9],
         ];
 
-        assert_eq!(got, want)
+        assert_eq!(got.unwrap(), want)
     }
 
     #[test]
@@ -163,7 +174,7 @@ mod test {
             [7, 4, 5, 2, 8, 6, 3, 1, 9],
         ];
 
-        assert_eq!(got, want)
+        assert_eq!(got.unwrap(), want)
     }
 
     #[test]
