@@ -14,29 +14,22 @@ pub fn solve(table: &Sudoku) -> Result<Sudoku, SolverError> {
     let mut possibilities = calculate_possibilities(&t);
 
     while !possibilities.is_empty() {
-        match possibilities.iter().find(|cell| cell.1.len() == 1) {
-            Some((addr, p)) => {
-                t[addr.0][addr.1] = p[0];
-            }
-            None => {
-                let (addr, ps) = possibilities
-                    .iter_mut()
-                    .reduce(|acc, e| if e.1.len() < acc.1.len() { e } else { acc })
-                    .unwrap();
+        let (addr, ps) = possibilities
+            .iter_mut()
+            .reduce(|acc, e| if e.1.len() < acc.1.len() { e } else { acc })
+            .unwrap();
 
-                match ps.pop() {
-                    Some(v) => t[addr.0][addr.1] = v,
-                    None => return Err(SolverError::Impossible),
-                }
+        match ps.pop() {
+            Some(v) => t[addr.0][addr.1] = v,
+            None => return Err(SolverError::Impossible),
+        }
 
-                match solve(&t) {
-                    Ok(solved) => t = solved,
-                    Err(_) => match ps.pop() {
-                        Some(v) => t[addr.0][addr.1] = v,
-                        None => return Err(SolverError::Impossible),
-                    },
-                }
-            }
+        match solve(&t) {
+            Ok(solved) => t = solved,
+            Err(_) => match ps.pop() {
+                Some(v) => t[addr.0][addr.1] = v,
+                None => return Err(SolverError::Impossible),
+            },
         }
 
         possibilities = calculate_possibilities(&t);
